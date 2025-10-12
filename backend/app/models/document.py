@@ -1,7 +1,7 @@
 """
 Document model for storing uploaded study materials
 """
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Enum, Float
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -29,59 +29,59 @@ class ProcessingStatus(str, enum.Enum):
 
 class Document(Base):
     """Document model for user-uploaded study materials"""
-    
+
     __tablename__ = "documents"
-    
+
     # Primary key
     id = Column(Integer, primary_key=True, index=True)
-    
+
     # Foreign key to user
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    
+
     # Document metadata
     title = Column(String(500), nullable=False)
     original_filename = Column(String(500), nullable=False)
-    file_path = Column(String(1000), nullable=False)  # S3 path or local path
-    file_size = Column(Integer, nullable=False)  # Size in bytes
+    file_path = Column(String(1000), nullable=False)
+    file_size = Column(Integer, nullable=False)
     document_type = Column(Enum(DocumentType), nullable=False)
     mime_type = Column(String(100), nullable=False)
-    
+
     # Processing status
     processing_status = Column(Enum(ProcessingStatus), default=ProcessingStatus.PENDING, nullable=False)
     processing_error = Column(Text, nullable=True)
-    
+
     # Extracted content
     extracted_text = Column(Text, nullable=True)
     text_length = Column(Integer, default=0)
     page_count = Column(Integer, nullable=True)
-    
+
     # Vector embeddings metadata
     is_indexed = Column(Boolean, default=False, nullable=False)
-    vector_store_id = Column(String(255), nullable=True)  # ID in Pinecone/Chroma
+    vector_store_id = Column(String(255), nullable=True)
     chunk_count = Column(Integer, default=0)
-    
+
     # Subject classification
-    subject = Column(String(100), nullable=True)  # e.g., "Mathematics", "Physics"
+    subject = Column(String(100), nullable=True)
     topic = Column(String(255), nullable=True)
-    difficulty_level = Column(String(50), nullable=True)  # "beginner", "intermediate", "advanced"
-    
+    difficulty_level = Column(String(50), nullable=True)
+
     # Usage statistics
     view_count = Column(Integer, default=0)
     question_count = Column(Integer, default=0)
     summary_count = Column(Integer, default=0)
-    
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     processed_at = Column(DateTime(timezone=True), nullable=True)
-    
+
     # Relationships
     user = relationship("User", back_populates="documents")
     conversations = relationship("Conversation", back_populates="document", cascade="all, delete-orphan")
-    
+
     def __repr__(self):
         return f"<Document(id={self.id}, title={self.title}, type={self.document_type})>"
-    
+
     def to_dict(self) -> dict:
         """Convert document to dictionary"""
         return {

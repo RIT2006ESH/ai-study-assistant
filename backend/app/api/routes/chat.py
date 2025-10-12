@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from app.services.ai_engine.llm_client import LLMClient
 
-router = APIRouter(prefix="/chat", tags=["chat"])
+router = APIRouter()
 
 class MessageRequest(BaseModel):
     message: str
