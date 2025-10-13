@@ -1,0 +1,23 @@
+{
+  "name": "ai-study-assistant",
+  "version": "1.0.0",
+  "description": "An intelligent, personalized study companion that helps students learn more effectively through AI-powered document summarization, Q&A, problem-solving, and adaptive learning.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RIT2006ESH/ai-study-assistant.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/RIT2006ESH/ai-study-assistant/issues"
+  },
+  "homepage": "https://github.com/RIT2006ESH/ai-study-assistant#readme"
+}
