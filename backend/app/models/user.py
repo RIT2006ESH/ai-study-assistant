@@ -19,3 +19,5 @@ class User(Base):
     conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
     learning_profile = relationship("LearningProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     problem_attempts = relationship("ProblemAttempt", back_populates="user", cascade="all, delete-orphan")
+    # Question History relationship
+    question_history = relationship("QuestionHistory", back_populates="user", cascade="all, delete-orphan", lazy="dynamic")

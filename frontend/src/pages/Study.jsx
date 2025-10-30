@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import chatService from '../services/chatService'
 
 const Study = () => {
   const [message, setMessage] = useState('')
@@ -18,7 +19,7 @@ const Study = () => {
     "Explain the concept of derivatives in calculus"
   ]
 
-  // Chat functionality
+  // Chat functionality with VALIDATION
   const handleSendMessage = async () => {
     if (!message.trim()) return
 
@@ -28,17 +29,43 @@ const Study = () => {
     setMessage('')
 
     try {
-      const res = await fetch('http://localhost:8000/api/chat/message', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message })
-      })
-      const data = await res.json()
+      // Use chatService which handles validation
+      const result = await chatService.sendMessage(message)
 
-      const aiMessage = { type: 'ai', content: data.response, timestamp: new Date() }
+      let aiMessage
+      
+      // Check if query was rejected
+      if (result.isRejected || (!result.success && result.error)) {
+        aiMessage = {
+          type: 'ai',
+          content: result.message || 'This assistant only answers study-related questions.',
+          timestamp: new Date(),
+          isRejected: true
+        }
+      } else if (result.success) {
+        aiMessage = {
+          type: 'ai',
+          content: result.response,
+          timestamp: new Date(),
+          isRejected: false
+        }
+      } else {
+        aiMessage = {
+          type: 'ai',
+          content: result.message || 'Sorry, I encountered an error. Please try again.',
+          timestamp: new Date(),
+          isError: true
+        }
+      }
+
       setChatHistory(prev => [...prev, aiMessage])
     } catch (error) {
-      const errorMessage = { type: 'ai', content: 'Sorry, I encountered an error. Please try again.', timestamp: new Date() }
+      const errorMessage = {
+        type: 'ai',
+        content: 'Network error. Please check your connection.',
+        timestamp: new Date(),
+        isError: true
+      }
       setChatHistory(prev => [...prev, errorMessage])
     }
 
@@ -53,25 +80,53 @@ const Study = () => {
   }
 
   // Summarization functionality
-  const handleSummarize = async () => {
-    if (!summarizeInput.trim()) return
+const handleSummarize = async () => {
+  if (!summarizeInput.trim()) return
 
-    setIsLoading(true)
-    try {
-      const res = await fetch('http://localhost:8000/api/summarize/simple/summarize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: summarizeInput })
+  setIsLoading(true)
+  setResults([])
+  
+  try {
+    alert('Starting summarize request...')
+    
+    const res = await fetch('http://localhost:8000/api/summarize/solve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        problem: `Please provide a clear and concise summary of the following text:\n\n${summarizeInput}`,
+        type: 'general'
       })
-      const data = await res.json()
-      setResults([{ title: 'Summary', content: data.summary }])
+    })
+    
+    alert(`Response status: ${res.status}`)
+    
+    const data = await res.json()
+    alert(`Data received: ${JSON.stringify(data)}`)
+    
+    if (!res.ok) {
+      alert(`Error from server: ${JSON.stringify(data)}`)
+      setResults([{ 
+        title: 'Error', 
+        content: JSON.stringify(data, null, 2)
+      }])
+    } else {
+      alert(`Success! Solution: ${data.solution}`)
+      setResults([{ 
+        title: 'Summary', 
+        content: data.solution
+      }])
       setSummarizeInput('')
-    } catch (error) {
-      setResults([{ title: 'Error', content: 'Failed to summarize. Please try again.' }])
     }
-    setIsLoading(false)
+  } catch (error) {
+    alert(`Caught error: ${error.toString()}`)
+    setResults([{ 
+      title: 'Error', 
+      content: error.toString()
+    }])
   }
-
+  
+  setIsLoading(false)
+}
   // Image analysis
   const handleImageUpload = async (e) => {
     const file = e.target.files[0]
@@ -208,10 +263,34 @@ const Study = () => {
                       <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                         msg.type === 'user'
                           ? 'bg-blue-500 text-white'
+                          : msg.isRejected
+                          ? 'bg-amber-50 border-2 border-amber-400 text-amber-900'
+                          : msg.isError
+                          ? 'bg-red-50 border-2 border-red-400 text-red-900'
                           : 'bg-white text-gray-800 shadow-md'
                       }`}>
+                        {msg.isRejected && (
+                          <div className="flex items-center gap-2 mb-2 font-semibold text-sm">
+                            <span>⚠️</span>
+                            <span>Query Restricted</span>
+                          </div>
+                        )}
+                        {msg.isError && (
+                          <div className="flex items-center gap-2 mb-2 font-semibold text-sm">
+                            <span>❌</span>
+                            <span>Error</span>
+                          </div>
+                        )}
                         <p className="whitespace-pre-wrap">{msg.content}</p>
-                        <p className={`text-xs mt-1 ${msg.type === 'user' ? 'text-blue-100' : 'text-gray-500'}`}>
+                        <p className={`text-xs mt-1 ${
+                          msg.type === 'user' 
+                            ? 'text-blue-100' 
+                            : msg.isRejected 
+                            ? 'text-amber-700'
+                            : msg.isError
+                            ? 'text-red-700'
+                            : 'text-gray-500'
+                        }`}>
                           {msg.timestamp.toLocaleTimeString()}
                         </p>
                       </div>

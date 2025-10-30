@@ -1,0 +1,4 @@
+
+class TextSummaryRequest(BaseModel):
+    text: str
+    level: str = "moderate"  # brief, moderate, detailed

@@ -1,0 +1,82 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from app.core.database import engine, Base
+from app.api.routes import auth, chat, documents, summarization
+from app.api import chat_routes  # Import new query validator routes
+from app.config import settings
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events"""
+    # Startup: Create database tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    print("\n🚀 AI Study Assistant is starting up...")
+    print(
+        f"📋 Query Validator: {'✅ Enabled' if settings.enable_ai_validation else '❌ Disabled'}")
+
+    yield
+
+    # Shutdown: Close database connections
+    print("\n👋 Shutting down AI Study Assistant...")
+    await engine.dispose()
+
+
+app = FastAPI(
+    title="AI Study Assistant",
+    description="AI-powered study assistant with document processing, summarization, and query validation",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:5175"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include routers
+app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
+app.include_router(
+    documents.router, prefix="/api/documents", tags=["Documents"])
+app.include_router(summarization.router,
+                   prefix="/api/summarize", tags=["Summarization"])
+
+# Include new query validator routes
+app.include_router(chat_routes.router, tags=["Chat with Validation"])
+
+
+@app.get("/")
+def read_root():
+    return {
+        "message": "AI Study Assistant API",
+        "version": "1.0.0",
+        "status": "running",
+        "features": {
+            "authentication": "enabled",
+            "chat": "enabled",
+            "documents": "enabled",
+            "summarization": "enabled",
+            "query_validation": "enabled" if settings.enable_ai_validation else "disabled"
+        }
+    }
+
+
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "service": "AI Study Assistant",
+        "query_validator": {
+            "enabled": settings.enable_ai_validation,
+            "mode": "strict" if settings.strict_validation_mode else "flexible",
+            "api_configured": bool(settings.gemini_api_key)
+        }
+    }

@@ -1,22 +1,110 @@
 const API_BASE_URL = 'http://localhost:8000/api'
 
-// Chat endpoints
+// Chat endpoints with QUERY VALIDATION
 export const chatAPI = {
-  sendMessage: async (message) => {
+  /**
+   * Send message to chat endpoint
+   * Backend expects 'query' field (from chat_routes.py ChatRequest model)
+   */
+  sendMessage: async (message, context = null) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/chat/message`, {
+      const res = await fetch(`${API_BASE_URL}/chat/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message })
+        body: JSON.stringify({
+          query: message,  // ✅ CHANGED: 'query' instead of 'message'
+          context: context
+        })
       })
-      if (!res.ok) throw new Error('Failed to send message')
-      return await res.json()
+
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.message || 'Failed to send message')
+      }
+
+      const data = await res.json()
+
+      // Check if response contains the AI reply
+      if (data.response) {
+        return {
+          success: true,
+          error: false,
+          response: data.response,
+          isRejected: false
+        }
+      }
+
+      // Handle validation rejection (if backend implements it)
+      if (!data.success) {
+        return {
+          success: false,
+          error: true,
+          message: data.message || 'This assistant only answers study-related questions.',
+          details: data.details,
+          validation: data.validation,
+          isRejected: true
+        }
+      }
+
+      // Fallback for unexpected response format
+      return {
+        success: true,
+        error: false,
+        response: data.response || JSON.stringify(data),
+        isRejected: false
+      }
     } catch (error) {
       console.error('Chat error:', error)
-      throw error
+      return {
+        success: false,
+        error: true,
+        message: error.message || 'Failed to send message',
+        isRejected: false
+      }
     }
   },
 
+  /**
+   * Validate a query before sending (optional pre-check)
+   */
+  validateQuery: async (query) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/chat/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query })
+      })
+
+      if (!res.ok) throw new Error('Validation failed')
+      return await res.json()
+    } catch (error) {
+      console.error('Validation error:', error)
+      return {
+        valid: false,
+        reason: 'Validation service unavailable'
+      }
+    }
+  },
+
+  /**
+   * Check chat service health
+   */
+  checkHealth: async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/chat/health`, {
+        method: 'GET'
+      })
+      if (!res.ok) throw new Error('Health check failed')
+      return await res.json()
+    } catch (error) {
+      console.error('Health check error:', error)
+      return { status: 'unhealthy', error: error.message }
+    }
+  },
+
+  /**
+   * Summarize text using chat endpoint
+   */
   summarizeText: async (text) => {
     try {
       const res = await fetch(`${API_BASE_URL}/chat/summarize`, {
@@ -39,7 +127,7 @@ export const documentAPI = {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      
+
       const res = await fetch(`${API_BASE_URL}/documents/upload`, {
         method: 'POST',
         body: formData,
@@ -111,7 +199,7 @@ export const summarizationAPI = {
     try {
       const formData = new FormData()
       formData.append('file', imageFile)
-      
+
       const res = await fetch(`${API_BASE_URL}/summarize/image`, {
         method: 'POST',
         body: formData,
@@ -131,7 +219,7 @@ export const summarizationAPI = {
     try {
       const formData = new FormData()
       formData.append('file', audioFile)
-      
+
       const res = await fetch(`${API_BASE_URL}/summarize/audio`, {
         method: 'POST',
         body: formData,
@@ -169,7 +257,7 @@ export const summarizationAPI = {
   }
 }
 
-// Auth endpoints (if needed)
+// Auth endpoints
 export const authAPI = {
   login: async (email, password) => {
     try {
